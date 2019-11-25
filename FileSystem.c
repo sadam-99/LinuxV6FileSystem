@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/wait.h>
+//#include <sys/wait.h>
 #include <sys/types.h>
 #include <ctype.h>
 #include <errno.h>
@@ -54,6 +54,7 @@ int fd;
 char pwd[100];
 int curINodeNumber;
 char fileSystemPath[100];
+static struct Inode root;
 
 void writeToBlock (int blockNumber, void * buffer, int nbytes)
 {
@@ -61,6 +62,15 @@ void writeToBlock (int blockNumber, void * buffer, int nbytes)
         write(fd,buffer,nbytes);
 }
 
+int openfs(const char *filename)
+{
+	fd=open(filename,2);
+	lseek(fd,BLOCK_SIZE,SEEK_SET);
+	read(fd,&super,sizeof(super));
+	lseek(fd,2*BLOCK_SIZE,SEEK_SET);
+	read(fd,&root,sizeof(root));
+	return 1;
+}
 
 void writeToBlockOffset(int blockNumber, int offset, void * buffer, int nbytes)
 {
@@ -111,14 +121,14 @@ int getFreeInode(){
 }
 
 void writeInode(int INumber, Inode inode){
-        int blockNumber = INumber * (INODE_SIZE / BLOCK_SIZE);
+        int blockNumber = (INumber * INODE_SIZE )/ BLOCK_SIZE;   //need to remove
         int offset = (INumber * INODE_SIZE) % BLOCK_SIZE;
         writeToBlockOffset(blockNumber, offset, &inode, sizeof(Inode));
 }
 
 Inode getInode(int INumber){
         Inode iNode;
-        int blockNumber = INumber * (INODE_SIZE / BLOCK_SIZE);
+        int blockNumber = (INumber * INODE_SIZE) / BLOCK_SIZE;    // need to remove 
         int offset = (INumber * INODE_SIZE) % BLOCK_SIZE;
         lseek(fd,(BLOCK_SIZE * blockNumber) + offset, SEEK_SET);
         read(fd,&iNode,INODE_SIZE);
@@ -136,7 +146,7 @@ void createRootDirectory(){
 
         writeToBlock(blockNumber, directory, 2*sizeof(dEntry));
 
-        Inode root;
+        
         root.flags = 1<<14 | 1<<15; // setting 14th and 15th bit to 1, 15: allocated and 14: directory
         root.nlinks = 1;
         root.uid = 0;
@@ -162,6 +172,9 @@ void ls(){                                                              // list 
                 printf("%s\n",directory[i].filename);
         }
 }
+
+
+
 
 void makedir(char* dirName)
 {
@@ -341,6 +354,41 @@ void rm(char* filename){
 
 }
 
+void removeDir(char* filename){
+        int blockNumber,x,i;
+        Inode curINode = getInode(curINodeNumber);
+        blockNumber = curINode.addr[0];
+        dEntry directory[100];
+        readFromBlockOffset(blockNumber,0,directory,curINode.size);
+
+        for(i = 0; i < curINode.size/sizeof(dEntry); i++)
+        {
+                if(strcmp(filename,directory[i].filename)==0){
+                        Inode file = getInode(directory[i].inode);
+                         if(file.flags ==( 1<<14 | 1<<15)){
+                                for(x = 0; x<file.size/BLOCK_SIZE; x++)
+                                {
+                                        blockNumber = file.addr[x];
+                                        addFreeBlock(blockNumber);
+                                }
+                                if(0<file.size%BLOCK_SIZE){
+                                        blockNumber = file.addr[x];
+                                        addFreeBlock(blockNumber);
+                                }
+                                addFreeInode(directory[i].inode);
+                                directory[i]=directory[(curINode.size/sizeof(dEntry))-1];
+                                curINode.size-=sizeof(dEntry);
+                                writeToBlock(curINode.addr[0],directory,curINode.size);
+                                writeInode(curINodeNumber,curINode);
+                            }
+                         else{
+                                printf("\n%s\n","NOT A DIRECTORY!");
+                         }
+                        return;
+                }
+        }
+
+}
 void initfs(char* path, int total_blocks, int total_inodes)
 {
         printf("\n filesystem intialization started \n");
@@ -410,7 +458,7 @@ int main(int argc, char *argv[])
         unsigned int blk_no =0, inode_no=0;
         char *fs_path;
         char *arg1, *arg2;
-        char *my_argv, cmd[256];
+        char *my_argv, cmd[512];
 
         while(1)
         {
@@ -470,8 +518,16 @@ int main(int argc, char *argv[])
                         arg1 = strtok(NULL, " ");
                         rm(arg1);
                 }
+                else if(strcmp(my_argv, "remDir")==0){
+                        arg1 = strtok(NULL, " ");
+                        removeDir(arg1);
+                }
                 else if(strcmp(my_argv, "pwd")==0){
                         printf("%s\n",pwd);
+                }
+                else if(strcmp(my_argv, "openfs")==0){
+                        arg1 = strtok(NULL, " ");
+                        openfs(arg1);
                 }
 
         }
