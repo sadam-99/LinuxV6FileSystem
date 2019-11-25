@@ -1,0 +1,3 @@
+- large files (indirect addressing)
+- open function
+- cd function (issue) .. is being appended
