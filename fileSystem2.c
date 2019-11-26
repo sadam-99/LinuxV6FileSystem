@@ -233,19 +233,20 @@ void changedir(char* dirName)
                 if(strcmp(dirName,directory[i].filename)==0){
                         Inode dir = getInode(directory[i].inode);
                         if(dir.flags ==( 1<<14 | 1<<15)){
-                                if (strcmp(dirName, "." == 0)) {
+                                if (strcmp(dirName, ".") == 0) {
                                         return;
                                 }
-                                else if (strcmp(dirName, ".." == 0)) {
-                                        int lastSlashPosition = pos(dirName, '/');
+                                else if (strcmp(dirName, "..") == 0) {
+                                        curINodeNumber=directory[i].inode;
+                                        int lastSlashPosition = lastIndexOf(pwd, '/');
                                         char temp[100];
-                                        slice_str(dirName, temp, 0, lastSlashPosition-1);
-                                        strcpy(dirName, temp);
+                                        slice_str(pwd, temp, 0, lastSlashPosition-1);
+                                        strcpy(pwd, temp);
                                 }
                                 else {
                                         curINodeNumber=directory[i].inode;
-                                        strcat(pwd,"/");
-                                        strcat(pwd,dirName);
+                                        strcat(pwd, "/");
+                                        strcat(pwd, dirName);
                                 } 
                         }
                         else{
