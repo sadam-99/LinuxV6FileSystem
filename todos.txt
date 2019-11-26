@@ -1,3 +1,5 @@
 - large files (indirect addressing)
-- open function
+- open function (fs open)
+
+Done:
 - cd function (issue) .. is being appended
