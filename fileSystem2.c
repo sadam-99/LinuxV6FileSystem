@@ -202,6 +202,25 @@ void makedir(char* dirName)
         writeInode(curINodeNumber,curINode);
 }
 
+int lastIndexOf(char s[100], char ch) {
+    int i, p=-1;
+    for (i=0; i<100; i++) {
+        if (s[i]==ch)
+            p = i;
+    }
+    return p;
+}
+
+void slice_str(const char * str, char * buffer, size_t start, size_t end)
+{
+    size_t j = 0;
+    size_t i;
+    for ( i = start; i <= end; ++i ) {
+        buffer[j++] = str[i];
+    }
+    buffer[j] = 0;
+}
+
 void changedir(char* dirName)
 {
         Inode curINode = getInode(curINodeNumber);
@@ -214,9 +233,20 @@ void changedir(char* dirName)
                 if(strcmp(dirName,directory[i].filename)==0){
                         Inode dir = getInode(directory[i].inode);
                         if(dir.flags ==( 1<<14 | 1<<15)){
-                                curINodeNumber=directory[i].inode;
-                                strcat(pwd,"/");
-                                strcat(pwd,dirName);
+                                if (strcmp(dirName, "." == 0)) {
+                                        return;
+                                }
+                                else if (strcmp(dirName, ".." == 0)) {
+                                        int lastSlashPosition = pos(dirName, '/');
+                                        char temp[100];
+                                        slice_str(dirName, temp, 0, lastSlashPosition-1);
+                                        strcpy(dirName, temp);
+                                }
+                                else {
+                                        curINodeNumber=directory[i].inode;
+                                        strcat(pwd,"/");
+                                        strcat(pwd,dirName);
+                                } 
                         }
                         else{
                                 printf("\n%s\n","NOT A DIRECTORY!");
